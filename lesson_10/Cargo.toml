@@ -1,0 +1,9 @@
+[package]
+name = "lesson_10"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their deinitions at https://doc.rust-lang.org/cargo/reerence/maniest.html
+
+[dependencies]
+gnuplot = "0.0.39"
