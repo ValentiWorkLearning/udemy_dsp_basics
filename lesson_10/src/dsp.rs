@@ -51,3 +51,30 @@ pub fn running_sum(signal_in: &[f64])->Vec<f64>{
     }
     out_signal
 }
+pub struct DftExecutionResult
+{
+    pub real_part:Vec<f64>,
+    pub im_part:Vec<f64>
+}
+
+pub fn dft_transform(signal_array: &[f64])->DftExecutionResult{
+    
+    let mut dft_result = DftExecutionResult
+    {
+        real_part:(0..signal_array.len() / 2 ).map(|_x|{0 as f64}).collect(),
+        im_part: (0..signal_array.len() / 2 ).map(|_x|{0 as f64}).collect()
+    };
+
+    // according to http://www.dspguide.com/ch8/6.htm
+    let N = signal_array.len();
+
+    for k in 0.. signal_array.len()/2{
+        for i in 0.. signal_array.len() - 1{
+            let common_part = (2.0* std::f64::consts::PI*(k as f64) *(i as f64) / (N as f64) ) as f64;
+
+            dft_result.real_part[k]=dft_result.real_part[k] + signal_array[i] *  common_part.cos();
+            dft_result.im_part[k] = dft_result.im_part[k] - signal_array[i] *  common_part.sin();
+        }
+    }
+    dft_result
+}
