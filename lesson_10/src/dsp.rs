@@ -78,3 +78,31 @@ pub fn dft_transform(signal_array: &[f64])->DftExecutionResult{
     }
     dft_result
 }
+pub fn compute_signal_magnitude(dft_result:&DftExecutionResult, signal_length:usize)->Vec<f64>{
+    let mut output_mag:Vec<f64> = (0..signal_length/2).map(|_x|{0 as f64}).collect();
+    for i in 0..signal_length / 2{
+        output_mag[i] = (dft_result.real_part[i].powf(2.0) + dft_result.im_part[i].powf(2.0)).sqrt();
+    }
+    output_mag
+}
+pub fn inverse_dft_transform(signal_length:usize, real_part:&[f64], im_part:&[f64])->Vec<f64>{
+    let mut output_signal:Vec<f64> = (0..signal_length).map(|_x|{0 as f64}).collect();
+    let mut output_rex:Vec<f64> = Vec::new();
+    let mut output_imx:Vec<f64> = Vec::new();
+
+    for k in 0..signal_length/2{
+        output_rex.push(real_part[k] / signal_length as f64 / 2.0);
+        output_imx.push( -im_part[k] / signal_length as f64 / 2.0);
+    }
+
+    let N = signal_length;
+
+    for k in 0..real_part.len(){
+        for i in 0..signal_length{
+            let mut common_multiplier = 2.0* std::f64::consts::PI*(k as f64) *(i as f64) / (N as f64);
+            output_signal[i] = output_signal[i] +  real_part[k] * common_multiplier.cos() as f64;
+            output_signal[i] = output_signal[i] +  im_part[k] * common_multiplier.sin() as f64;
+        }
+    }
+    output_signal
+}

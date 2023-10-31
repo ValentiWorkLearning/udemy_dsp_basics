@@ -88,7 +88,70 @@ fn draw_dft_sample(){
 		&[Caption("Imaginary part"),Color("blue")],
 	);
 
+
+    let idft_result = dsp::inverse_dft_transform(
+        waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ.len(),
+        &dft_result.real_part,
+        &dft_result.im_part
+    );
+    let idft_vec = gen_signal_vec(&idft_result);
+
+    fg.axes2d().lines(
+		&idft_vec,
+		&idft_result,
+		&[Caption("Synthesis from IDFT"),Color("red")],
+	);
+
+
 	fg.show().unwrap();
+}
+
+fn draw_fft_over_ecg()
+{
+    let mut fg = Figure::new();
+	fg.set_multiplot_layout(2, 2)
+		.set_title("Signal and DFT representation")
+		.set_scale(0.8, 0.8)
+		.set_offset(0.0, 0.0)
+		.set_multiplot_fill_order(RowsFirst, Downwards);
+
+    let signal_vec = gen_signal_vec(&waveforms::ECG_SIGNAL);
+
+
+    let dft_result = dsp::dft_transform(&waveforms::ECG_SIGNAL);
+
+    fg.axes2d().lines(
+		&signal_vec,
+		&waveforms::ECG_SIGNAL,
+		&[Caption("ECG Signal"),Color("red")],
+	);
+    
+    let signal_mag = dsp::compute_signal_magnitude(&dft_result,waveforms::ECG_SIGNAL.len());
+    let mag_vec = gen_signal_vec(&signal_mag);
+
+    fg.axes2d().lines(
+		&mag_vec,
+		&signal_mag,
+		&[Caption("Signal magnitude"),Color("black")],
+	);
+
+    let real_vec = gen_signal_vec(&dft_result.real_part);
+    let im_vec = gen_signal_vec(&dft_result.im_part);
+
+
+    fg.axes2d().lines(
+		&real_vec,
+		&dft_result.real_part,
+		&[Caption("Real Part"),Color("blue")],
+	);
+
+    fg.axes2d().lines(
+		&im_vec,
+		&dft_result.im_part,
+		&[Caption("Imaginary part"),Color("blue")],
+	);
+
+    fg.show().unwrap();
 }
 fn main(){
     let mean = dsp::compute_signal_mean(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
@@ -100,5 +163,6 @@ fn main(){
     println!("Signal deviation is : {}", signal_deviation);
 
     //draw_convolution_sample();
-    draw_dft_sample();
+    //draw_dft_sample();
+    draw_fft_over_ecg();
 }
