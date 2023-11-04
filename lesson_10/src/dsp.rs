@@ -1,5 +1,5 @@
 use crate::impulse_response;
-
+use float_cmp::{*};
 
 
 pub fn compute_signal_mean(signal_array: &[f64]) -> f64 {
@@ -51,15 +51,91 @@ pub fn running_sum(signal_in: &[f64])->Vec<f64>{
     }
     out_signal
 }
-pub struct DftExecutionResult
+
+pub struct PolarSample{
+    pub mag:f64,
+    pub phase:f64
+}
+
+pub struct Polar
+{
+    pub polar_data:Vec<PolarSample>
+}
+
+pub trait DftResult{
+    fn as_polar(&self)->Polar;
+}
+
+pub trait PolarResult{
+    fn as_rectangular(&self)->DftData;
+}
+
+impl PolarResult for Polar{
+    
+    fn as_rectangular(&self)->DftData{
+        let mut dft_result = DftData { real_part: Vec::new(), im_part: Vec::new() };
+        for sample in &self.polar_data{
+            dft_result.real_part.push(sample.mag * sample.phase.cos());
+            dft_result.im_part.push(sample.mag*sample.phase.sin());
+        }
+    
+        dft_result
+    }
+}
+pub struct DftData
 {
     pub real_part:Vec<f64>,
     pub im_part:Vec<f64>
 }
+impl DftResult for DftData{
+    fn as_polar(&self)->Polar {
+        let mut polar_rerp = Polar{
+            polar_data:Vec::new()
+        };
 
-pub fn dft_transform(signal_array: &[f64])->DftExecutionResult{
+        for i in 0..self.real_part.len(){
+            let mut sample = PolarSample{
+                mag: 0.0,
+                phase:0.0
+            };
+
+            let mut self_real = self.real_part[i];
+            let self_im = self.im_part[i];
+
+            sample.mag = (self_real.powf(2.0) + self_im.powf(2.0)).sqrt();
+
+            // Nuisance 2 from http://www.dspguide.com/ch8/9.htm . Correct real part to a small number.
+            if float_cmp::approx_eq!(f64,self_real,0.0, ulps=2) {
+                self_real = 10.0_f64.powf(-20.0);
+            }
+            sample.phase = (self_im/self_real).atan();
+
+            // Nuisance 3 correction for phase
+            let is_nuisance3_both_negative = (self_real< 0.0) && (self_im < 0.0);
+            let is_nuisance3_only_real_negative = self_real < 0.0 &&
+                ((self_im > 0.0)|| float_cmp::approx_eq!(f64,self_im,0.0));
+
+
+            if is_nuisance3_both_negative {
+                sample.phase-=std::f64::consts::PI;
+            }
+            
+            if is_nuisance3_only_real_negative{
+                sample.phase+=std::f64::consts::PI;
+            }
+            
+            
+            polar_rerp.polar_data.push(
+                sample
+            );
+        }
+
+        polar_rerp
+    }
+}
+pub fn dft_transform(signal_array: &[f64])->DftData{
     
-    let mut dft_result = DftExecutionResult
+    let mut dft_result = DftData
     {
         real_part:(0..signal_array.len() / 2 ).map(|_x|{0 as f64}).collect(),
         im_part: (0..signal_array.len() / 2 ).map(|_x|{0 as f64}).collect()
@@ -78,13 +154,15 @@ pub fn dft_transform(signal_array: &[f64])->DftExecutionResult{
     }
     dft_result
 }
-pub fn compute_signal_magnitude(dft_result:&DftExecutionResult, signal_length:usize)->Vec<f64>{
+pub fn compute_signal_magnitude(dft_result:&DftData, signal_length:usize)->Vec<f64>{
     let mut output_mag:Vec<f64> = (0..signal_length/2).map(|_x|{0 as f64}).collect();
     for i in 0..signal_length / 2{
         output_mag[i] = (dft_result.real_part[i].powf(2.0) + dft_result.im_part[i].powf(2.0)).sqrt();
     }
     output_mag
 }
+
+
 pub fn inverse_dft_transform(signal_length:usize, real_part:&[f64], im_part:&[f64])->Vec<f64>{
     let mut output_signal:Vec<f64> = (0..signal_length).map(|_x|{0 as f64}).collect();
     let mut output_rex:Vec<f64> = Vec::new();

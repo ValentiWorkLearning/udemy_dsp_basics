@@ -1,6 +1,7 @@
 pub mod waveforms;
 pub mod dsp;
 pub mod impulse_response;
+use dsp::DftResult;
 use gnuplot::{*,MultiplotFillOrder::*,MultiplotFillDirection::*};
 
 
@@ -110,7 +111,7 @@ fn draw_fft_over_ecg()
 {
     let mut fg = Figure::new();
 	fg.set_multiplot_layout(2, 2)
-		.set_title("Signal and DFT representation")
+		.set_title("ECG Signal and DFT representation")
 		.set_scale(0.8, 0.8)
 		.set_offset(0.0, 0.0)
 		.set_multiplot_fill_order(RowsFirst, Downwards);
@@ -153,6 +154,55 @@ fn draw_fft_over_ecg()
 
     fg.show().unwrap();
 }
+
+fn draw_rectangular_to_polar_sample(){
+    let mut fg = Figure::new();
+	fg.set_multiplot_layout(2, 2)
+		.set_title("DFT representation with polar notation")
+		.set_scale(1.2, 1.2)
+		.set_offset(0.0, 0.0)
+		.set_multiplot_fill_order(RowsFirst, Downwards);
+
+    let dft_result = dsp::dft_transform(&waveforms::ECG_SIGNAL);
+    let real_vec = gen_signal_vec(&dft_result.real_part);
+    let im_vec = gen_signal_vec(&dft_result.im_part);
+
+
+    fg.axes2d().lines(
+		&real_vec,
+		&dft_result.real_part,
+		&[Caption("Real Part"),Color("blue")],
+	);
+
+    fg.axes2d().lines(
+		&im_vec,
+		&dft_result.im_part,
+		&[Caption("Imaginary part"),Color("red")],
+	);
+
+
+    let polar_notation =  dft_result.as_polar();
+    let extracted_magnitude : Vec<f64> = polar_notation.polar_data.iter().map(|sample| sample.mag ).collect();
+    let magnitude_x = gen_signal_vec(&extracted_magnitude);
+
+
+    let extracted_phase : Vec<f64> = polar_notation.polar_data.iter().map(|sample| sample.phase ).collect();
+    let phase_x = gen_signal_vec(&extracted_phase);
+
+    fg.axes2d().lines(
+		&magnitude_x,
+		&extracted_magnitude,
+		&[Caption("Magnitude"),Color("green")],
+	);
+
+    fg.axes2d().lines(
+		&phase_x,
+		&extracted_phase,
+		&[Caption("Phase"),Color("black")],
+	);
+
+    fg.show().unwrap();
+}
 fn main(){
     let mean = dsp::compute_signal_mean(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
     let signal_variance = dsp::compute_signal_variance(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
@@ -164,5 +214,6 @@ fn main(){
 
     //draw_convolution_sample();
     //draw_dft_sample();
-    draw_fft_over_ecg();
+    //draw_fft_over_ecg();
+    draw_rectangular_to_polar_sample();
 }
