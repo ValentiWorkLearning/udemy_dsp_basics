@@ -35,6 +35,17 @@ fn draw_convolution_sample(){
 	);
     
 
+
+    let convolution_out_side = dsp::convolution_output_side(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ, &impulse_response::IMPULSE_RESPONSE);
+    let convolution_out_side_vec = gen_signal_vec(&convolution_out_side);
+    fg.axes2d().lines(
+		&convolution_out_side_vec,
+		&convolution_out_side,
+		&[Caption("Convolution Output side"),Color("black")],
+	);
+
+
+
     let convolution_result = dsp::convolution(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ, &impulse_response::IMPULSE_RESPONSE);
     let convolution_vec = gen_signal_vec(&convolution_result);
     fg.axes2d().lines(
@@ -44,14 +55,14 @@ fn draw_convolution_sample(){
 	);
 
 
-    let running_sum_result = dsp::running_sum(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
-    let running_sum_vec = gen_signal_vec(&running_sum_result);
+    // let running_sum_result = dsp::running_sum(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
+    // let running_sum_vec = gen_signal_vec(&running_sum_result);
 
-    fg.axes2d().lines(
-		&running_sum_vec,
-		&running_sum_result,
-		&[Caption("Running sum"),Color("blue")],
-	);
+    // fg.axes2d().lines(
+	// 	&running_sum_vec,
+	// 	&running_sum_result,
+	// 	&[Caption("Running sum"),Color("blue")],
+	// );
 
 	fg.show().unwrap();
 }
@@ -156,6 +167,7 @@ fn draw_fft_over_ecg()
 }
 
 fn draw_rectangular_to_polar_sample(){
+
     let mut fg = Figure::new();
 	fg.set_multiplot_layout(2, 2)
 		.set_title("DFT representation with polar notation")
@@ -203,6 +215,54 @@ fn draw_rectangular_to_polar_sample(){
 
     fg.show().unwrap();
 }
+
+fn draw_20khz_rex_imx_sample_with_complex_dft(){
+    let mut fg = Figure::new();
+	fg.set_multiplot_layout(2, 2)
+		.set_title("Signal real and imaginary parts")
+		.set_scale(0.8, 0.8)
+		.set_offset(0.0, 0.0)
+		.set_multiplot_fill_order(RowsFirst, Downwards);
+
+    let signal_vec_rex_imx = gen_signal_vec(&waveforms::SIG_20_HZ_REX);
+
+	fg.axes2d().lines(
+		&signal_vec_rex_imx,
+		&waveforms::SIG_20_HZ_REX,
+		&[Caption("Real part"),Color("black")],
+	);
+    
+    fg.axes2d().lines(
+		&signal_vec_rex_imx,
+		&waveforms::SIH_20_HZ_IMX,
+		&[Caption("Imaginary part"),Color("black")],
+	);
+
+    let signal_complex_dft = dsp::complex_dft_transform(&waveforms::SIG_20_HZ_REX,&waveforms::SIH_20_HZ_IMX);
+    
+    
+    let extracted_real : Vec<f64> = signal_complex_dft.iter().map(|sample| sample.re ).collect();
+    let real_x = gen_signal_vec(&extracted_real);
+
+    fg.axes2d().lines(
+		&real_x,
+		&extracted_real,
+		&[Caption("DFT Real"),Color("red")],
+	);
+
+
+    let extracted_imagine : Vec<f64> = signal_complex_dft.iter().map(|sample| sample.im ).collect();
+    let im_x = gen_signal_vec(&extracted_imagine);
+
+    fg.axes2d().lines(
+		&im_x,
+		&extracted_imagine,
+		&[Caption("DFT Imagine"),Color("blue")],
+	);
+
+
+    fg.show().unwrap();
+}
 fn main(){
     let mean = dsp::compute_signal_mean(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
     let signal_variance = dsp::compute_signal_variance(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
@@ -215,5 +275,6 @@ fn main(){
     //draw_convolution_sample();
     //draw_dft_sample();
     //draw_fft_over_ecg();
-    draw_rectangular_to_polar_sample();
+    //draw_rectangular_to_polar_sample();
+    draw_20khz_rex_imx_sample_with_complex_dft();
 }

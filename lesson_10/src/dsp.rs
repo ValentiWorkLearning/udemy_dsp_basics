@@ -1,6 +1,6 @@
 use crate::impulse_response;
 use float_cmp::{*};
-
+use num::complex::Complex;
 
 pub fn compute_signal_mean(signal_array: &[f64]) -> f64 {
     let mut mean: f64 = Default::default();
@@ -43,6 +43,26 @@ pub fn convolution(signal_array: &[f64], impulse_response:&[f64])->Vec<f64>{
     convolution_result
 }
 
+
+pub fn convolution_output_side(signal_array: &[f64], impulse_response:&[f64])->Vec<f64>{
+        // 1. Generate output signal array according to the convolution equation:
+    let mut convolution_result:Vec<f64> = (0..signal_array.len() + impulse_response.len()).map(|_x|{0 as f64}).collect();
+    for i  in 0..convolution_result.len(){
+        for j in 0.. impulse_response.len(){
+            if (i as i128 - j as i128 ) < 0{
+                continue;
+            }
+            if i+j >= signal_array.len() {
+                continue;
+            }
+            //println!("I value: {}, J value:{}", i,j);
+            convolution_result[i] = convolution_result[i] + impulse_response[j] * signal_array[i-j];
+            
+        }
+
+    }
+    convolution_result
+}
 pub fn running_sum(signal_in: &[f64])->Vec<f64>{
     let mut out_signal:Vec<f64> = Vec::new();
     out_signal.push(signal_in[0]);
@@ -148,7 +168,7 @@ pub fn dft_transform(signal_array: &[f64])->DftData{
         for i in 0.. signal_array.len() - 1{
             let common_part = (2.0* std::f64::consts::PI*(k as f64) *(i as f64) / (N as f64) ) as f64;
 
-            dft_result.real_part[k]=dft_result.real_part[k] + signal_array[i] *  common_part.cos();
+            dft_result.real_part[k] = dft_result.real_part[k] + signal_array[i] *  common_part.cos();
             dft_result.im_part[k] = dft_result.im_part[k] - signal_array[i] *  common_part.sin();
         }
     }
@@ -183,4 +203,28 @@ pub fn inverse_dft_transform(signal_length:usize, real_part:&[f64], im_part:&[f6
         }
     }
     output_signal
+}
+
+pub fn complex_dft_transform(signal_array_real: &[f64],signal_array_im: &[f64])->Vec<num::complex::Complex64>{
+    let mut output_complex:Vec<num::complex::Complex64> = (0..signal_array_real.len()).map(|_x|{Complex::new(0.0,0.0)}).collect();
+
+    // Frequency domain
+    for k in 0..output_complex.len(){
+        // Time domain
+        for i in 0..signal_array_real.len(){
+            // From http://www.dspguide.com/ch12/3.htm
+            let sr = (2.0*std::f64::consts::PI*k as f64 *i as f64 / signal_array_real.len() as f64).cos();
+            let si = -(2.0*std::f64::consts::PI*k as f64 *i as f64 / signal_array_real.len() as f64 ).sin();
+            // From Euler's formuale:http://embeddedsystemengineering.blogspot.com/2016/06/complex-dft-and-fft-algorithm.html
+
+            let real_part = signal_array_real[i] * sr - signal_array_im[i]* si;
+            let im_part = signal_array_real[i] * si + signal_array_im[i] * sr;
+            //https://www.udemy.com/course/digital-signal-processing-dsp-from-ground-uptm-in-c/learn/lecture/11368702#overview 
+            // The author didn't get properly the formulae from DSPguide
+            //let im_part = signal_array_im[i] * si - signal_array_im[i] * sr;
+
+            output_complex[k] += Complex::new( real_part,im_part);
+        }
+    }
+    output_complex
 }
