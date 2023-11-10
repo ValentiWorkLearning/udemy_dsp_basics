@@ -263,6 +263,67 @@ fn draw_20khz_rex_imx_sample_with_complex_dft(){
 
     fg.show().unwrap();
 }
+
+fn draw_fft_vs_dft()
+{
+    let mut fg = Figure::new();
+	fg.set_multiplot_layout(2, 2)
+		.set_title("DFT vs FFT")
+		.set_scale(0.8, 0.8)
+		.set_offset(0.0, 0.0)
+		.set_multiplot_fill_order(RowsFirst, Downwards);
+
+
+    let test_sequence_real:[f64; 8] = [0.46,0.72,-0.3,-0.09,-0.16,-0.2,0.0, -0.43 ];
+    let test_sequence_imagine:[f64; 8] = [ 0.0,0.0,0.0,0.0, 0.0,0.0,0.0,0.0];
+    let fft_result = dsp::fft_transform(&test_sequence_real);
+    let dft_result = dsp::complex_dft_transform(&test_sequence_real,&test_sequence_imagine);
+
+    {
+    
+        let extracted_real : Vec<f64> = dft_result.iter().map(|sample| sample.re ).collect();
+        let real_x = gen_signal_vec(&extracted_real);
+    
+        fg.axes2d().lines(
+            &real_x,
+            &extracted_real,
+            &[Caption("DFT Real"),Color("red")],
+        );
+    
+    
+        let extracted_imagine : Vec<f64> = dft_result.iter().map(|sample| sample.im ).collect();
+        let im_x = gen_signal_vec(&extracted_imagine);
+    
+        fg.axes2d().lines(
+            &im_x,
+            &extracted_imagine,
+            &[Caption("DFT Imagine"),Color("red")],
+        );
+    }
+
+    {
+        let extracted_real_fft : Vec<f64> = fft_result.iter().map(|sample| sample.re ).collect();
+        let real_x = gen_signal_vec(&extracted_real_fft);
+    
+        fg.axes2d().lines(
+            &real_x,
+            &extracted_real_fft,
+            &[Caption("FFT Real"),Color("blue")],
+        );
+    
+    
+        let extracted_imagine_fft : Vec<f64> = fft_result.iter().map(|sample| sample.im ).collect();
+        let im_x = gen_signal_vec(&extracted_imagine_fft);
+    
+        fg.axes2d().lines(
+            &im_x,
+            &extracted_imagine_fft,
+            &[Caption("FFT Imagine"),Color("blue")],
+        );
+    }
+
+    fg.show().unwrap();
+}
 fn main(){
     let mean = dsp::compute_signal_mean(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
     let signal_variance = dsp::compute_signal_variance(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
@@ -276,5 +337,6 @@ fn main(){
     //draw_dft_sample();
     //draw_fft_over_ecg();
     //draw_rectangular_to_polar_sample();
-    draw_20khz_rex_imx_sample_with_complex_dft();
+    //draw_20khz_rex_imx_sample_with_complex_dft();
+    draw_fft_vs_dft();
 }

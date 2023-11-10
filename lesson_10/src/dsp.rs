@@ -1,6 +1,5 @@
-use crate::impulse_response;
-use float_cmp::{*};
-use num::complex::Complex;
+use float_cmp::*;
+use num::{complex::Complex};
 
 pub fn compute_signal_mean(signal_array: &[f64]) -> f64 {
     let mut mean: f64 = Default::default();
@@ -162,11 +161,11 @@ pub fn dft_transform(signal_array: &[f64])->DftData{
     };
 
     // according to http://www.dspguide.com/ch8/6.htm
-    let N = signal_array.len();
+    let n = signal_array.len();
 
     for k in 0.. signal_array.len()/2{
         for i in 0.. signal_array.len() - 1{
-            let common_part = (2.0* std::f64::consts::PI*(k as f64) *(i as f64) / (N as f64) ) as f64;
+            let common_part = (2.0* std::f64::consts::PI*(k as f64) *(i as f64) / (n as f64) ) as f64;
 
             dft_result.real_part[k] = dft_result.real_part[k] + signal_array[i] *  common_part.cos();
             dft_result.im_part[k] = dft_result.im_part[k] - signal_array[i] *  common_part.sin();
@@ -193,11 +192,11 @@ pub fn inverse_dft_transform(signal_length:usize, real_part:&[f64], im_part:&[f6
         output_imx.push( -im_part[k] / signal_length as f64 / 2.0);
     }
 
-    let N = signal_length;
+    let n = signal_length;
 
     for k in 0..real_part.len(){
         for i in 0..signal_length{
-            let mut common_multiplier = 2.0* std::f64::consts::PI*(k as f64) *(i as f64) / (N as f64);
+            let common_multiplier = 2.0* std::f64::consts::PI*(k as f64) *(i as f64) / (n as f64);
             output_signal[i] = output_signal[i] +  real_part[k] * common_multiplier.cos() as f64;
             output_signal[i] = output_signal[i] +  im_part[k] * common_multiplier.sin() as f64;
         }
@@ -228,3 +227,87 @@ pub fn complex_dft_transform(signal_array_real: &[f64],signal_array_im: &[f64])-
     }
     output_complex
 }
+
+fn compute_bit_reverse_index(index:usize, order:u8)->usize{
+    let mut result:usize  = 0;
+    let mut order_count:u8 = order;
+    let mut index_local = index;
+
+    while order_count!=0 {
+        result <<= 1;
+        result |= index_local & 1;
+        index_local = index_local >> 1;
+        order_count-=1;
+    }
+    result
+}
+
+
+fn compute_fft_stages_order(signal_array:&[f64])->u8{
+    let mut pow_order:u8 = 0;
+    let mut buf_size = signal_array.len();
+    while buf_size % 2 == 0 {
+        buf_size /= 2;
+        pow_order+=1;
+    }
+    pow_order
+}
+
+
+fn bit_reversal_in_place(signal_array:&[f64])->Vec<num::complex::Complex64>{
+    let mut bit_reversed:Vec<num::complex::Complex64> = signal_array.iter().map(|real_sample|{ num::complex::Complex64::new(*real_sample, 0.0_f64) }).collect();
+
+    let order = compute_fft_stages_order(signal_array);
+    let num_iterations = signal_array.len() / 2;
+    for i  in 0 .. num_iterations {
+        let current_index = i;
+        let reversed_index = compute_bit_reverse_index(current_index, order);
+        bit_reversed.swap(current_index, reversed_index);
+    }
+
+    bit_reversed
+}
+
+trait TwindleFactorOrdered {
+    fn compute_for_order(&self)->num::complex::Complex64;
+}
+struct TwindleFactor{
+    index:u8,
+    order:u8
+}
+
+impl TwindleFactorOrdered for TwindleFactor{
+    fn compute_for_order(&self)->num::complex::Complex64 {
+        let real:f64 = (2.0_f64 * std::f64::consts::PI * self.index as f64 / self.order as f64).cos();
+        let imag:f64 = -(2.0_f64 * std::f64::consts::PI * self.index as f64 / self.order as f64).sin();
+
+        num::complex::Complex64::new(real,imag)
+    }
+}
+
+pub fn fft_transform(signal_array:&[f64])->Vec<num::complex::Complex64>{
+    // Implemented according to https://www.linkedin.com/pulse/how-fft-algorithm-works-part-1-repeating-mark-newman/
+    // and
+    // https://www.dspguide.com/ch12.htm
+    let mut output_vector = bit_reversal_in_place(&signal_array);
+
+    let num_stages = compute_fft_stages_order(&signal_array);
+
+    for i in 1 ..num_stages+1{
+        let step = 2_usize.pow(i as u32);
+        let internal_it = step / 2;
+
+        for j in (0..output_vector.len()).step_by(step){
+            for k in 0 .. internal_it{
+                let even_sample = output_vector[j + k];
+                let odd_sample = output_vector[j + k + internal_it] * TwindleFactor{ index: k as u8, order: step as u8 }.compute_for_order();
+                let even_result = even_sample + odd_sample;
+                let odd_result = even_sample - odd_sample;
+                output_vector[j + k] = even_result;
+                output_vector[j + k + internal_it] = odd_result;
+            }
+        }
+    }
+    output_vector
+}
+
