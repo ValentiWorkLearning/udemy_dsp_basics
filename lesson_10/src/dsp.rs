@@ -311,3 +311,88 @@ pub fn fft_transform(signal_array:&[f64])->Vec<num::complex::Complex64>{
     output_vector
 }
 
+
+
+pub fn compute_hamming_window(filter_kernel_length:usize)->Vec<f64>{
+    let mut filter_kernel:Vec<f64> = (0..filter_kernel_length).map(|_x|{0 as f64}).collect();
+    for i in 0.. filter_kernel_length{
+            let computed_sample = 2.0_f64*std::f64::consts::PI * i as f64 / filter_kernel_length as f64;
+            filter_kernel[i] = 0.54_f64 -0.46_f64*computed_sample.cos();
+    }
+    filter_kernel
+}
+
+pub fn compute_blackman_window(filter_kernel_length:usize)->Vec<f64>{
+    let mut filter_kernel:Vec<f64> = (0..filter_kernel_length).map(|_x|{0 as f64}).collect();
+    for i in 0.. filter_kernel_length{
+        let computed_sample = 2.0_f64*std::f64::consts::PI * i as f64 / filter_kernel_length as f64;
+        let second_sample = 4.0_f64*std::f64::consts::PI * i as f64 / filter_kernel_length as f64;
+        filter_kernel[i] = 0.42_f64 -0.5_f64*computed_sample.cos() + 0.08_f64*second_sample.cos();
+}
+filter_kernel
+}
+
+
+fn normalize_frequency(cutoff_frequency:f64,sampling_frequency:f64)->f64{
+    let nyquist_frequency = sampling_frequency / 2.0_f64;
+    // Propotion example
+    // nyqust_frequency: 0.5 = 24'000
+    // Cutoff frequency: x = 10'000
+    // x = 10'000/24'000 * 0.5
+    // normalized_cutoff_frequency = cutoff_frequency/nyquist_frequency * 0.5
+
+    let normalized_cutoff_frequency = cutoff_frequency / nyquist_frequency * 0.5;
+    normalized_cutoff_frequency
+}
+
+pub fn design_windowed_sinc_filter(cutoff_frequency:f64,sampling_frequency:f64, filter_kernel_length:usize)->Vec<f64>{
+    let mut filter_kernel:Vec<f64> = (0..filter_kernel_length).map(|_x|{0 as f64}).collect();
+
+    let K = 1.0_f64;
+    let normalized_cutoff_frequency = normalize_frequency(cutoff_frequency,sampling_frequency);
+    let hamming_window = compute_blackman_window(filter_kernel_length);
+
+    // http://www.dspguide.com/ch16/2.htm
+    for i in 0..filter_kernel_length{
+        if i  == (filter_kernel_length / 2){
+            filter_kernel[i] = 2.0_f64*std::f64::consts::PI*normalized_cutoff_frequency*K;
+        }
+        else{
+            let sinc_base = 2.0_f64*std::f64::consts::PI*normalized_cutoff_frequency*(i as f64 - filter_kernel_length as f64/2.0_f64) / ( i  as f64 - filter_kernel_length as f64/2.0_f64);
+            filter_kernel[i] = K * sinc_base;
+            filter_kernel[i]*=hamming_window[i];
+        }
+    }
+
+    filter_kernel
+}
+
+
+pub fn perform_spectral_inversion(filter_kernel:&mut Vec<f64>){
+    for i in 0..filter_kernel.len(){
+        filter_kernel[i] = - filter_kernel[i];
+    }
+}
+pub fn design_windowed_sinc_filter_hpf(cutoff_frequency:f64,sampling_frequency:f64, filter_kernel_length:usize)->Vec<f64>{
+    let mut kernel = design_windowed_sinc_filter(cutoff_frequency,sampling_frequency,filter_kernel_length);
+    perform_spectral_inversion(&mut kernel);
+    kernel
+}
+pub fn design_bandbass_filter(low_bandpass_freq:f64,high_bandpass_freq:f64,sampling_frequency:f64, filter_kernel_length:usize)->Vec<f64>{
+    let mut low_passband_filter_kernel:Vec<f64> = design_windowed_sinc_filter(low_bandpass_freq,sampling_frequency,filter_kernel_length);
+    let mut high_passband_filter_kernel:Vec<f64> = design_windowed_sinc_filter(high_bandpass_freq, sampling_frequency, filter_kernel_length);
+
+    let mut filter_kernel:Vec<f64> = (0..filter_kernel_length).map(|_x|{0 as f64}).collect();
+
+    // Apply spectrum inversion to the high pass filter
+    perform_spectral_inversion(&mut high_passband_filter_kernel);
+
+    // Combine lowpass and highpass filter
+    for i in 0..filter_kernel_length{
+        filter_kernel[i] = low_passband_filter_kernel[i] + high_passband_filter_kernel[i];
+    }
+    
+    // Apply spectrum inversion to the band-reject filter to obtain the bandpass filter
+    perform_spectral_inversion(&mut filter_kernel);
+    filter_kernel
+}

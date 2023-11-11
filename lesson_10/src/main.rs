@@ -324,6 +324,157 @@ fn draw_fft_vs_dft()
 
     fg.show().unwrap();
 }
+
+
+fn draw_hamming_blackman_windows(){
+    let mut fg = Figure::new();
+	fg.set_multiplot_layout(2, 2)
+		.set_title("Hamming and Blackman windows")
+		.set_scale(0.8, 0.8)
+		.set_offset(0.0, 0.0)
+		.set_multiplot_fill_order(RowsFirst, Downwards);
+
+    let hamming_window : Vec<f64> = dsp::compute_hamming_window(128);
+    let hamming_window_x = gen_signal_vec(&hamming_window);
+
+    fg.axes2d().lines(
+        &hamming_window_x,
+        &hamming_window,
+        &[Caption("Hamming window"),Color("red")],
+    );
+
+    let blackman_window : Vec<f64> = dsp::compute_blackman_window(128);
+    let blackman_window_x = gen_signal_vec(&blackman_window);
+
+    fg.axes2d().lines(
+        &blackman_window_x,
+        &blackman_window,
+        &[Caption("Blackman window"),Color("red")],
+    );
+    
+    fg.show().unwrap();
+}
+
+fn draw_designed_filter_sample(){
+    let mut fg = Figure::new();
+	fg.set_multiplot_layout(2, 2)
+		.set_title("Designed low-pass filter demo")
+		.set_scale(0.8, 0.8)
+		.set_offset(0.0, 0.0)
+		.set_multiplot_fill_order(RowsFirst, Downwards);
+
+    let filter_kernel_lpf = dsp::design_windowed_sinc_filter(10000.0, 48000.0, 28);
+    let filtred_result_lpf = dsp::convolution(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ, &filter_kernel_lpf);
+
+    let input_signal_vec = gen_signal_vec(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
+    let filtred_signal_vec = gen_signal_vec(&filtred_result_lpf);
+
+	fg.axes2d().lines(
+		&input_signal_vec,
+		&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ,
+		&[Caption("Signal"),Color("black")],
+	);
+    
+    fg.axes2d().lines(
+		&filtred_signal_vec,
+		&filtred_result_lpf,
+		&[Caption("Filtred signal LPF"),Color("red")],
+	);
+
+    let filter_kernel_hpf = dsp::design_windowed_sinc_filter_hpf(10000.0, 48000.0,28);
+    //let mut lpf_for_inversion = impulse_response::DESIGNED_LPF_6KHZ.to_vec();
+    //dsp::perform_spectral_inversion(&mut lpf_for_inversion);
+    let filtred_result_hpf = dsp::convolution(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ, &filter_kernel_hpf);
+    fg.axes2d().lines(
+		&filtred_signal_vec,
+		&filtred_result_hpf,
+		&[Caption("Filtred signal HPF"),Color("red")],
+	);
+
+
+    let mut impulse_sample:Vec<f64> = (0..256).map(|_x|{0 as f64}).collect();
+    impulse_sample[0] = 1.0;
+
+    let impulse_response_lpf = dsp::convolution(&impulse_sample, &filter_kernel_lpf);
+    let impulse_response_vec = gen_signal_vec(&impulse_response_lpf);
+    fg.axes2d().lines(
+		&impulse_response_vec,
+		&impulse_response_lpf,
+		&[Caption("Impulse response LPF"),Color("red")],
+	);
+
+    fg.show().unwrap();
+}
+
+
+fn draw_designed_bandpass_filter(){
+    let mut fg = Figure::new();
+	fg.set_multiplot_layout(4, 2)
+		.set_title("Designed bandpass filter demo")
+		.set_scale(1.0, 1.0)
+		.set_offset(0.0, 0.0)
+		.set_multiplot_fill_order(RowsFirst, Downwards);
+
+    let filter_kernel_highpass = dsp::design_bandbass_filter(12000.0,16000.0, 48000.0, 50);
+    let filter_kernel_lowpass = dsp::design_bandbass_filter(200.0,1500.0, 48000.0, 50);
+    let filtred_result_hpf = dsp::convolution(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ, &filter_kernel_highpass);
+    let filtred_result_lpf = dsp::convolution(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ, &filter_kernel_lowpass);
+
+    let input_signal_vec = gen_signal_vec(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
+    let filtred_signal_vec = gen_signal_vec(&filtred_result_hpf);
+
+    let filter_kernel_vec = gen_signal_vec(&filter_kernel_highpass);
+
+    fg.axes2d().lines(
+		&filter_kernel_vec,
+		&filter_kernel_highpass,
+		&[Caption("Filter kernel"),Color("black")],
+	);
+    
+    fg.axes2d().lines(
+		&filtred_signal_vec,
+		&filtred_result_hpf,
+		&[Caption("Filtred HPF"),Color("red")],
+	);
+    fg.axes2d().lines(
+		&filtred_signal_vec,
+		&filtred_result_lpf,
+		&[Caption("Filtred LPF"),Color("red")],
+	);
+
+	fg.axes2d().lines(
+		&input_signal_vec,
+		&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ,
+		&[Caption("Signal"),Color("black")],
+	);
+
+
+    let dft_result_hpf = dsp::dft_transform(&filtred_result_hpf);
+    
+    let signal_mag = dsp::compute_signal_magnitude(&dft_result_hpf,filtred_result_hpf.len());
+    let mag_vec = gen_signal_vec(&signal_mag);
+
+    fg.axes2d().lines(
+		&mag_vec,
+		&signal_mag,
+		&[Caption("HPF magnitude"),Color("black")],
+	);
+
+
+    let dft_result_lpf = dsp::dft_transform(&filtred_result_lpf);
+    
+    let signal_mag_lpf = dsp::compute_signal_magnitude(&dft_result_lpf,filtred_result_lpf.len());
+    let mag_vec_lpf = gen_signal_vec(&signal_mag_lpf);
+
+    fg.axes2d().lines(
+		&mag_vec_lpf,
+		&signal_mag_lpf,
+		&[Caption("LPF magnitude"),Color("black")],
+	);
+
+    fg.show().unwrap();
+}
+
 fn main(){
     let mean = dsp::compute_signal_mean(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
     let signal_variance = dsp::compute_signal_variance(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
@@ -338,5 +489,8 @@ fn main(){
     //draw_fft_over_ecg();
     //draw_rectangular_to_polar_sample();
     //draw_20khz_rex_imx_sample_with_complex_dft();
-    draw_fft_vs_dft();
+    //draw_fft_vs_dft();
+    //draw_hamming_blackman_windows();
+    draw_designed_filter_sample();
+    //draw_designed_bandpass_filter();
 }
