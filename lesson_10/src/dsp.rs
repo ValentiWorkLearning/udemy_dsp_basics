@@ -1,5 +1,5 @@
 use float_cmp::*;
-use num::{complex::Complex};
+use num::{complex::Complex, traits::Pow};
 
 pub fn compute_signal_mean(signal_array: &[f64]) -> f64 {
     let mut mean: f64 = Default::default();
@@ -328,8 +328,8 @@ pub fn compute_blackman_window(filter_kernel_length:usize)->Vec<f64>{
         let computed_sample = 2.0_f64*std::f64::consts::PI * i as f64 / filter_kernel_length as f64;
         let second_sample = 4.0_f64*std::f64::consts::PI * i as f64 / filter_kernel_length as f64;
         filter_kernel[i] = 0.42_f64 -0.5_f64*computed_sample.cos() + 0.08_f64*second_sample.cos();
-}
-filter_kernel
+    }
+    filter_kernel
 }
 
 
@@ -348,30 +348,40 @@ fn normalize_frequency(cutoff_frequency:f64,sampling_frequency:f64)->f64{
 pub fn design_windowed_sinc_filter(cutoff_frequency:f64,sampling_frequency:f64, filter_kernel_length:usize)->Vec<f64>{
     let mut filter_kernel:Vec<f64> = (0..filter_kernel_length).map(|_x|{0 as f64}).collect();
 
-    let K = 1.0_f64;
+    let k: f64 = 1.0_f64;
     let normalized_cutoff_frequency = normalize_frequency(cutoff_frequency,sampling_frequency);
     let hamming_window = compute_blackman_window(filter_kernel_length);
 
     // http://www.dspguide.com/ch16/2.htm
     for i in 0..filter_kernel_length{
         if i  == (filter_kernel_length / 2){
-            filter_kernel[i] = 2.0_f64*std::f64::consts::PI*normalized_cutoff_frequency*K;
+            filter_kernel[i] = 2.0_f64*std::f64::consts::PI*normalized_cutoff_frequency*k;
         }
         else{
             let sinc_base = 2.0_f64*std::f64::consts::PI*normalized_cutoff_frequency*(i as f64 - filter_kernel_length as f64/2.0_f64) / ( i  as f64 - filter_kernel_length as f64/2.0_f64);
-            filter_kernel[i] = K * sinc_base;
+            filter_kernel[i] = k * sinc_base;
             filter_kernel[i]*=hamming_window[i];
         }
     }
+    let normalization_factor_sum:f64 = filter_kernel.iter().sum();
+    filter_kernel.iter_mut().for_each(|koef| *koef/= normalization_factor_sum);
 
     filter_kernel
 }
 
 
+pub fn perform_spectral_reversal(filter_kernel:&mut Vec<f64>){
+    for i in 0..filter_kernel.len(){
+        filter_kernel[i] = (-1.0_f64).powf(i as f64) * filter_kernel[i];
+    }
+}
+
 pub fn perform_spectral_inversion(filter_kernel:&mut Vec<f64>){
     for i in 0..filter_kernel.len(){
-        filter_kernel[i] = - filter_kernel[i];
+        filter_kernel[i] = -filter_kernel[i];
     }
+    let kernel_length = filter_kernel.len() / 2;
+    filter_kernel[kernel_length] +=1.0;
 }
 pub fn design_windowed_sinc_filter_hpf(cutoff_frequency:f64,sampling_frequency:f64, filter_kernel_length:usize)->Vec<f64>{
     let mut kernel = design_windowed_sinc_filter(cutoff_frequency,sampling_frequency,filter_kernel_length);
