@@ -3,6 +3,7 @@ pub mod dsp;
 pub mod impulse_response;
 use dsp::DftResult;
 use gnuplot::{*,MultiplotFillOrder::*,MultiplotFillDirection::*};
+use num::traits::Pow;
 
 
 fn gen_signal_vec(arr_to_process:&[f64])->Vec<usize>{
@@ -363,7 +364,7 @@ fn draw_designed_filter_sample(){
 		.set_offset(0.0, 0.0)
 		.set_multiplot_fill_order(RowsFirst, Downwards);
 
-    let filter_kernel_lpf = dsp::design_windowed_sinc_filter(10000.0, 48000.0, 28);
+    let filter_kernel_lpf = dsp::design_windowed_sinc_filter(10000.0, 48000.0, 59);
     let filtred_result_lpf = dsp::convolution(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ, &filter_kernel_lpf);
 
     let input_signal_vec = gen_signal_vec(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ);
@@ -381,9 +382,8 @@ fn draw_designed_filter_sample(){
 		&[Caption("Filtred signal LPF"),Color("red")],
 	);
 
-    let filter_kernel_hpf = dsp::design_windowed_sinc_filter_hpf(10000.0, 48000.0,28);
-    //let mut lpf_for_inversion = impulse_response::DESIGNED_LPF_6KHZ.to_vec();
-    //dsp::perform_spectral_inversion(&mut lpf_for_inversion);
+    let filter_kernel_hpf = dsp::design_windowed_sinc_filter_hpf(1000.0, 48000.0,28);
+    
     let filtred_result_hpf = dsp::convolution(&waveforms::INPUT_SIGNAL_32_1K_HZ_15K_HZ, &filter_kernel_hpf);
     fg.axes2d().lines(
 		&filtred_signal_vec,
@@ -391,21 +391,63 @@ fn draw_designed_filter_sample(){
 		&[Caption("Filtred signal HPF"),Color("red")],
 	);
 
-
-    let mut impulse_sample:Vec<f64> = (0..256).map(|_x|{0 as f64}).collect();
-    impulse_sample[0] = 1.0;
-
-    let impulse_response_lpf = dsp::convolution(&impulse_sample, &filter_kernel_lpf);
-    let impulse_response_vec = gen_signal_vec(&impulse_response_lpf);
+    let hpf_kernel_vec = gen_signal_vec(&filter_kernel_hpf);
     fg.axes2d().lines(
-		&impulse_response_vec,
-		&impulse_response_lpf,
-		&[Caption("Impulse response LPF"),Color("red")],
+		&hpf_kernel_vec,
+		&filter_kernel_hpf,
+		&[Caption("Impulse response HPF"),Color("red")],
 	);
 
     fg.show().unwrap();
 }
 
+
+fn draw_hpf_hpf_impulse_step_response(){
+	let mut fg = Figure::new();
+	fg.set_multiplot_layout(2, 2)
+		.set_title("Designed low-pass filter demo")
+		.set_scale(0.8, 0.8)
+		.set_offset(0.0, 0.0)
+		.set_multiplot_fill_order(RowsFirst, Downwards);
+
+    let filter_kernel_lpf = dsp::design_windowed_sinc_filter_hpf(10000.0, 48000.0, 59);
+   
+   	let mut filter_kernel_padded = filter_kernel_lpf.clone();
+	while filter_kernel_padded.len() != 64 {
+		filter_kernel_padded.push(0.0_f64);
+	}
+
+    let frequency_response = dsp::fft_transform(&filter_kernel_padded);
+	let fft_magnitude:Vec<f64>= frequency_response
+		.iter()
+		.enumerate()
+		.filter(|&(i,_)|
+			{ return i<= frequency_response.len() / 2;
+			})
+		.map(|(_,complex_result)|
+		{
+			return (complex_result.re.powf(2.0_f64) + complex_result.im.powf(2.0_f64)).sqrt() as f64;
+		}).collect();
+
+	let filter_kernel_vec = gen_signal_vec(&filter_kernel_lpf);
+	let fft_result = gen_signal_vec(&fft_magnitude);
+
+
+	fg.axes2d().lines(
+		&filter_kernel_vec,
+		&filter_kernel_lpf,
+		&[Caption("LPF window"),Color("black")],
+	);
+    
+    fg.axes2d().lines(
+		&fft_result,
+		&fft_magnitude,
+		&[Caption("FFT over impulse response"),Color("blue")],
+	);
+
+	fg.show().unwrap();
+
+}
 
 fn draw_designed_bandpass_filter(){
     let mut fg = Figure::new();
@@ -491,6 +533,7 @@ fn main(){
     //draw_20khz_rex_imx_sample_with_complex_dft();
     //draw_fft_vs_dft();
     //draw_hamming_blackman_windows();
-    draw_designed_filter_sample();
+    //draw_designed_filter_sample();
     //draw_designed_bandpass_filter();
+	draw_hpf_hpf_impulse_step_response();
 }
