@@ -148,7 +148,7 @@ impl PlayerImpl {
         let config = device.default_output_config().unwrap();
         println!("Default output config: {:?}", config);
 
-        let channels = 2;
+        let channels = 1;
         let samples = samples.clone();
         let mut sample_clock = 0_usize;
         let mut next_value = move || {
@@ -173,7 +173,6 @@ impl PlayerImpl {
             )
             .unwrap();
         stream.play();
-
-        std::thread::sleep(std::time::Duration::from_millis(20000));
+        std::thread::sleep(std::time::Duration::from_millis(10000));
     }
 }
