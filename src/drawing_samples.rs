@@ -518,3 +518,65 @@ pub fn draw_designed_bandpass_filter(){
 
     fg.show().unwrap();
 }
+
+
+
+pub fn draw_amplitute_modulation_sample(){
+    let mut fg = Figure::new();
+	fg.set_multiplot_layout(4, 2)
+		.set_title("Amplitude modulation demo")
+		.set_scale(1.0, 1.0)
+		.set_offset(0.0, 0.0)
+		.set_multiplot_fill_order(RowsFirst, Downwards);
+
+
+    const NUM_SAMPLES_PER_WAVE:u32 = 1024;
+    const CARRIER_FREQUENCY:u32 = 20;
+    const VOICE_TONE:u32 = 2;
+
+    let mut carrier_signal_array:Vec<f32> = Vec::new();
+    let mut voice_signal:Vec<f32> = Vec::new();
+
+    // Chapter 10 - Fourier Transform Properties 205, Amplitude modulation
+
+    for i in 0..NUM_SAMPLES_PER_WAVE{
+        let carrier_sample = (2.0_f32 * std::f32::consts::PI * CARRIER_FREQUENCY as f32 * i as f32 / NUM_SAMPLES_PER_WAVE as f32).sin();
+        let voice_sample = (2.0_f32 * std::f32::consts::PI * VOICE_TONE as f32 * i as f32 / NUM_SAMPLES_PER_WAVE as f32).sin();
+        carrier_signal_array.push(carrier_sample);
+        voice_signal.push(voice_sample);
+    }
+
+    let carrier_x = gen_signal_vec(&carrier_signal_array);
+
+    fg.axes2d().lines(
+		&carrier_x,
+		&carrier_signal_array,
+		&[Caption("Carrier signal"),Color("black")],
+	);
+    fg.axes2d().lines(
+		&carrier_x,
+		&voice_signal,
+		&[Caption("Voice simulated signal"),Color("black")],
+	);
+
+    carrier_signal_array.iter_mut().enumerate().for_each(move |(sample_index,carrier_sample)| { *carrier_sample*=voice_signal[sample_index] });
+
+
+    fg.axes2d().lines(
+		&carrier_x,
+		&carrier_signal_array,
+		&[Caption("AM Modulated signal"),Color("blue")],
+	);
+
+    let fft = dsp::fft_transform(&carrier_signal_array);
+
+    let fft_magnitude : Vec<f32> = fft.iter().map(|sample| (sample.re.powf(2.0) + sample.im.powf(2.0)).sqrt() ).collect();
+    let fft_magnitute_x = gen_signal_vec(&fft_magnitude);
+
+    fg.axes2d().lines(
+            &fft_magnitute_x,
+            &fft_magnitude,
+            &[Caption("FFT magnitude"),Color("red")],
+        );
+    fg.show().unwrap();
+}

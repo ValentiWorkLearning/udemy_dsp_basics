@@ -16,7 +16,9 @@ fn main(){
     //draw_designed_bandpass_filter();
 	//draw_hpf_hpf_impulse_step_response();
 
-	let filter_kernel_highpass = dsp::design_bandbass_filter(1000.0,2000.0, 48000.0, 50);
-	let player = player::PlayerImpl{};
-	player.play_with_applied_filter(String::from("./assets/Jazz.wav"),&filter_kernel_highpass);
+	// let filter_kernel_highpass = dsp::design_windowed_sinc_filter(100.0,48000.0, 60);
+	// let player = player::PlayerImpl{};
+	// player.play_with_applied_filter(String::from("/Users/valentynkorniienko/Documents/Development/dsp_course/assets/patron.wav"),&filter_kernel_highpass);
+
+	drawing_samples::draw_amplitute_modulation_sample();
 }
