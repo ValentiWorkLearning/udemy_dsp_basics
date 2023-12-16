@@ -274,8 +274,8 @@ trait TwindleFactorOrdered {
     fn compute_for_order(&self)->num::complex::Complex32;
 }
 struct TwindleFactor{
-    index:u8,
-    order:u8
+    index:usize,
+    order:usize
 }
 
 impl TwindleFactorOrdered for TwindleFactor{
@@ -302,7 +302,7 @@ pub fn fft_transform(signal_array:&[f32])->Vec<num::complex::Complex32>{
         for j in (0..output_vector.len()).step_by(step){
             for k in 0 .. internal_it{
                 let even_sample = output_vector[j + k];
-                let odd_sample = output_vector[j + k + internal_it] * TwindleFactor{ index: k as u8, order: step as u8 }.compute_for_order();
+                let odd_sample = output_vector[j + k + internal_it] * TwindleFactor{ index: k as usize, order: step as usize }.compute_for_order();
                 let even_result = even_sample + odd_sample;
                 let odd_result = even_sample - odd_sample;
                 output_vector[j + k] = even_result;
