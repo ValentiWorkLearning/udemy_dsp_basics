@@ -7,7 +7,6 @@ use gnuplot::{*,MultiplotFillOrder::*,MultiplotFillDirection::*};
 mod waveforms;
 mod impulse_response;
 
-
 fn gen_signal_vec(arr_to_process:&[f32])->Vec<usize>{
     (0..arr_to_process.len()).map(|x| x).collect()
 }
